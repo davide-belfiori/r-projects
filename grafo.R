@@ -1,10 +1,11 @@
 
-# tot ore = 3,5
+# tot ore = 4,5
 
 
 Nodo <- setRefClass("nodo", fields = list(nome = "character",   
                                           value = "numeric",
-                                          visitato = "logical"))
+                                          visitato = "logical",
+                                          distanza = "numeric"))
 
 
 
@@ -113,7 +114,7 @@ Graph <- setRefClass("graph", fields = list(matrice = "matrix", archi = "insieme
   
   
   cercaNodoPerNome = function(nome){
-    return(!is.null( nodi$getNodo(nome)))
+    return(!is.null(nodi$getNodo(nome)))
   },
   
   cercaNodo = function(x){
@@ -123,7 +124,7 @@ Graph <- setRefClass("graph", fields = list(matrice = "matrix", archi = "insieme
   
   # punto 1a.1
   
-  cercaArcoPerNome = function(nomeX, nomeY){
+  cercaArcoPerNome = function(nomeX, nomeY) {
     
     if(cercaNodoPerNome(nomeX) && cercaNodoPerNome(nomeY))
       if(matrice[nomeX, nomeY] > 0)
@@ -174,8 +175,8 @@ Graph <- setRefClass("graph", fields = list(matrice = "matrix", archi = "insieme
   
   rimuoviNodo = function(x){
     
-    if(cercaNodo(x)){
-      matrice <<- matrice[!rownames(matrice) %in% x$nome,  # restituisce una lista di booleani
+    if(cercaNodo(x)) {
+      matrice <<- matrice[!rownames(matrice) %in% x$nome,
                           !colnames(matrice) %in% x$nome]
       
       nodi$rimuoviNodo(x)
@@ -190,6 +191,7 @@ Graph <- setRefClass("graph", fields = list(matrice = "matrix", archi = "insieme
     
     if(!cercaArco(x, y)){
       matrice[x$nome, y$nome] <<- 1
+      matrice[y$nome, x$nome] <<- 1
       archi$aggiungiArco(x, y, 1)
     }
   },
@@ -199,7 +201,8 @@ Graph <- setRefClass("graph", fields = list(matrice = "matrix", archi = "insieme
   
   rimuoviArco = function(x, y) {
     if(cercaArco(x, y)){
-      matrice[x$nome, y$nome] <<- 1
+      matrice[x$nome, y$nome] <<- 0
+      matrice[y$nome, x$nome] <<- 0
       archi$rimuoviArco(x, y)
     }
   },
@@ -238,6 +241,7 @@ Graph <- setRefClass("graph", fields = list(matrice = "matrix", archi = "insieme
   impostaValoreArco = function(nomeSorg, nomeDest, peso){
     if(cercaArcoPerNome(nomeSorg, nomeDest)){
       matrice[nomeSorg, nomeDest] <<- peso
+      matrice[nomeDest, nomeSorg] <<- peso
       a <- archi$getArco(nomeSor, nomeDest)
       a$peso <- peso
     }
@@ -249,11 +253,11 @@ Graph <- setRefClass("graph", fields = list(matrice = "matrix", archi = "insieme
 
 # punto 1.b : la lista di adiacenza è rappresentata con un dataframe
 
-listaAdiacenza <- function(graph){
+listaAdiacenza <- function(grafo){
   
-  df <- data.frame()
+  df <- data.frame(ncol = 2)
   
-  for(arco in graph$archi$listaArchi){
+  for(arco in grafo$archi$listaArchi){
     
     # creo una nuova riga
     
@@ -297,14 +301,27 @@ visitaAmpiezza <- function(grafo, partenza) {
 }
 
 
-dijkstra <- function(grafo, partenza) {
-  #...
+dijkstra <- function(grafo, partenza, arrivo) {
+  partenza$distanza = 0;
+  q <- grafo$nodi$listaNodi
+  q[order(sapply(q, function (x) x$distanza), decreasing = F)]
+  while(length(q) > 0){
+    u <- q[[1]]
+    q <- q[-1]
+    for(v in grafo$getAdiacenti(u)){
+      alt <- u$distanza + grafo$valoreArco(u$nome, v$nome)
+      if(alt < v$distanza){
+        v$distanza <- alt
+        q[order(sapply(q, function (x) x$distanza), decreasing = F)]
+      }
+    }
+  }
 }
 
 
-nodoA <- Nodo(nome = "A", value = 1, visitato = F);
-nodoB <- Nodo(nome = "B", value = 2, visitato = F);
-nodoC <- Nodo(nome = "C", value = 10, visitato = F);
+nodoA <- Nodo(nome = "A", value = 1, visitato = F, distanza = Inf);
+nodoB <- Nodo(nome = "B", value = 2, visitato = F, distanza = Inf);
+nodoC <- Nodo(nome = "C", value = 10, visitato = F, distanza = Inf);
 
 arco1 <- Arco(sorgente = nodoA, dest = nodoB, peso = 3);
 arco2 <- Arco(sorgente = nodoA, dest = nodoC, peso = 5);
@@ -312,7 +329,6 @@ arco2 <- Arco(sorgente = nodoA, dest = nodoC, peso = 5);
 archi <- InsiemeArchi(listaArchi = c(arco1, arco2))
 
 nodi <- InsiemeNodi(listaNodi = c(nodoA, nodoB, nodoC))
-
 
 matrice <- creaMatrice(nodi, archi)
 
